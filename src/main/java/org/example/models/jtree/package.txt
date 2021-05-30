@@ -1,0 +1,5 @@
+JTree is an Intermediate Representation for a Java-like language with sum type extension.
+It is a syntax tree for a C-like language designed to be easily transpillable to
+Java, C and other C-like languages.
+
+Sum types (algebraic datatypes/case classes) are represented using Datatype class.

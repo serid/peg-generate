@@ -1,0 +1,19 @@
+package org.example.impl.peg.arith.assets
+
+extern org.example.impl.peg.arith.assets.PegInt
+extern org.example.impl.peg.arith.assets.TokenProvider as token provider
+
+# PEG grammar for arithmetic
+
+Expr <- Sum
+
+Sum <- Product SumT*
+SumT <- SumC Product
+SumC <- '+' / '-'
+
+Product <- Value ProductT*
+ProductT <- ProductC Value
+ProductC <- '*' / '/'
+
+Value <- PegInt / '(' Expr ')'
+# dont forget newline after last rule

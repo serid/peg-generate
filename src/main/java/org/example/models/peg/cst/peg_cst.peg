@@ -1,0 +1,10 @@
+# PEG grammar for the PEG grammar description language
+
+Grammar <- Rule*
+Rule <- NonTerminal '<-' OrderedChoice '\n'
+OrderedChoice <- Sequence ('/' Sequence)*
+Sequence <- Postfix (Postfix)*
+PostfixC <- '*' / '+' / '?'
+Postfix <- Prefix PostfixC*
+Prefix <- '&' Prefix / '!' Prefix / Value
+Value <- AcoTerminal / NonTerminal / '(' OrderedChoice ')'
