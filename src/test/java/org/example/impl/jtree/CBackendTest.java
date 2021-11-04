@@ -13,7 +13,6 @@ import org.example.models.jtree.method.statement.Statement;
 import org.example.models.jtree.type.DataTypeReference;
 import org.example.models.jtree.type.datatype.Datatype;
 import org.example.models.jtree.type.datatype.DatatypeVariable;
-import org.example.models.jtree.type.datatype.DatatypeVariant;
 import org.example.util.Lazy;
 import org.junit.jupiter.api.Test;
 
@@ -23,28 +22,22 @@ class CBackendTest {
 
     @Test
     void transpile() {
-        var variants = new DatatypeVariant[]{
-                new DatatypeVariant("Ok",
-                        new DatatypeVariable[]{
-                                new DatatypeVariable(new DataTypeReference(Datatype.getInt()), "a")}
-                ),
-                new DatatypeVariant("Err",
-                        new DatatypeVariable[]{
-                                new DatatypeVariable(new DataTypeReference(new Datatype("Error")), "b")}
-                )
+        var variants = new DatatypeVariable[]{
+                                new DatatypeVariable(new DataTypeReference(Datatype.getInt()), "a"),
+                                new DatatypeVariable(new DataTypeReference(new Datatype("Error")), "b")
         };
 
         Lazy<Method[]> methods = new Lazy<>();
 
         var example_jtree_program = new Program("a", new String[]{}, new Datatype[]{
-                new Datatype("Result", variants, methods)
+                new Datatype("Result", true, variants, methods)
         });
 
         methods.resolve(new Method[]{
                 new Method("unwrap", new DatatypeVariable[]{}, new Statement[]{
                         new IfThenElse(new CheckVariant(example_jtree_program.datatypes[0], variants[0], new Deref(new This())),
-                                new Return(new GetField(new Deref(new This()), example_jtree_program.datatypes[0].variants[0].fields[0].name)),
-                                new Return(new GetField(new Deref(new This()), example_jtree_program.datatypes[0].variants[1].fields[0].name)))
+                                new Return(new GetField(new Deref(new This()), example_jtree_program.datatypes[0].variants[0].name)),
+                                new Return(new GetField(new Deref(new This()), example_jtree_program.datatypes[0].variants[1].name)))
                 }, new DataTypeReference(Datatype.getUnit()))
         });
 

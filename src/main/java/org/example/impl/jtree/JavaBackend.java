@@ -276,7 +276,7 @@ public class JavaBackend extends AbstractJtreeBackend {
         DatatypeVariable[] plainFields = new DatatypeVariable[]{};
 
         // transpile variants and fields
-        if (dataType.variants.length > 1) {
+        if (dataType.isSumtype) {
             // sum type
 
             var tag = Stream.of(
@@ -284,20 +284,16 @@ public class JavaBackend extends AbstractJtreeBackend {
             );
 
             var fields = Arrays.stream(dataType.variants)
-                    .map(variant -> {
-                        assert variant.fields.length == 1;
-                        return variant.fields[0];
-                    })
                     // ignore unit fields
                     .filter(field -> !(field.type instanceof DataTypeReference &&
                             ((DataTypeReference) field.type).name.equals("Unit")));
 
             // join tag and other fields
             plainFields = Stream.concat(tag, fields).toArray(DatatypeVariable[]::new);
-        } else if (dataType.variants.length == 1) {
+        } else {
             // record type
 
-            plainFields = dataType.variants[0].fields;
+            plainFields = dataType.variants;
         } /*else {
             throw new IllegalArgumentException("dataType.variants should be nonempty");
         }*/
@@ -321,18 +317,18 @@ public class JavaBackend extends AbstractJtreeBackend {
         new_line();
 
         // if a sum type
-        if (dataType.variants.length > 1) {
+        if (dataType.isSumtype) {
             // for each variant generate a "make" method
             for (int i = 0; i < dataType.variants.length; i++) {
                 // filter out Unit fields
-                var filtered_fields = Arrays.stream(dataType.variants[i].fields)
+                var filtered_fields = Stream.of(dataType.variants[i])
                         .filter(field -> !(field.type instanceof DataTypeReference &&
                                 ((DataTypeReference) field.type).name.equals("Unit")))
                         .toArray(DatatypeVariable[]::new);
 
                 // first parameter is tag
                 var tag = Stream.of(
-                        (Expression) new GetIdentValue(dataType.name + "Kind." + "KIND" + (i + 1))
+                        (Expression) new GetIdentValue(dataType.name + "Kind." + "KIND_" + (i + 1))
                 );
 
                 // add "dataType.variants.length" arguments where only "i"-th is nonnull "filtered_fields[0].name"
@@ -367,7 +363,7 @@ public class JavaBackend extends AbstractJtreeBackend {
         }
 
         // transpile Kind enum
-        if (dataType.variants.length > 1) {
+        if (dataType.isSumtype) {
             place_indentation();
             StringBuilderFormat.format(sb, "public enum %sKind { ", dataType.name);
             for (var data : dataType.variants) {

@@ -143,14 +143,15 @@ public class CBackend extends AbstractJtreeBackend {
             sb.append("typedef struct {");
             new_line();
 
-            indent++;
-            for (var field : variant.fields) {
-                place_indentation();
-                transpile_variable(field);
-                sb.append(";");
-                new_line();
-            }
-            indent--;
+            System.out.println("unimplemented");
+//            indent++;
+//            for (var field : variant) {
+//                place_indentation();
+//                transpile_variable(field);
+//                sb.append(";");
+//                new_line();
+//            }
+//            indent--;
 
             place_indentation();
             StringBuilderFormat.format(sb, "} %s_%s;", dataType.name, variant.name);

@@ -10,7 +10,6 @@ import org.example.util.PathClassloader;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -34,7 +33,7 @@ class PegTest {
         }
         var generatedCode = Peg.compile(content, new Tokenizer(), new TwoStepParser(), new Generator(), new JavaBackend(JavaBackend.ADTEmulationKind.TAG_FIELD_AND_PLAIN_UNUNIONED_VARIANTS));
 
-//        System.out.println(generatedCode);
+        System.out.println(generatedCode);
 
         var compilationDirectory = Path.of("src/test/resources/org/example/impl/peg/arith/assets/");
 
@@ -61,11 +60,7 @@ class PegTest {
             var expected = 185;
 
             // assertEquals(185, TestPlayground.test(input));
-            try {
-                assertEquals(185, testMethod.invoke(null, input));
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException(e);
-            }
+            assertEquals(expected, testMethod.invoke(null, input));
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {

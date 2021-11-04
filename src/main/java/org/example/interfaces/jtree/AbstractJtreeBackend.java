@@ -1,7 +1,7 @@
 package org.example.interfaces.jtree;
 
-import org.example.util.Util;
 import org.example.util.StringBuilderFormat;
+import org.example.util.Util;
 
 /**
  * Provides utility methods for JTree backends

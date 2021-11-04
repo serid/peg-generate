@@ -9,7 +9,6 @@ import org.example.models.jtree.type.ArrayTypeReference;
 import org.example.models.jtree.type.DataTypeReference;
 import org.example.models.jtree.type.datatype.Datatype;
 import org.example.models.jtree.type.datatype.DatatypeVariable;
-import org.example.models.jtree.type.datatype.DatatypeVariant;
 import org.example.models.peg.ast.AstGrammar;
 import org.example.models.peg.ast.AstRule;
 import org.example.models.peg.ast.Node;
@@ -26,6 +25,19 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class Generator implements IGenerator {
+    private static String externToTypeName(String s) {
+        return s.substring(s.lastIndexOf('.') + 1);
+    }
+
+    private static boolean isTokenProviderExtern(String s) {
+        return s.startsWith("TPR:");
+    }
+
+    private static String tokenProviderExternToUsualExtern(String s) {
+        assert isTokenProviderExtern(s);
+        return s.substring(4);
+    }
+
     private Pair<Datatype, Method> rule_to_datatype_and_parsing_method(AstRule rule, Set<String> externs) {
         // remove acoterminals from rule tree to then derive datatype for the rule
         var deflated = Deflator.deflate(rule.node);
@@ -44,19 +56,6 @@ public class Generator implements IGenerator {
         );
 
         return new Pair<>(datatype, parsing_method);
-    }
-
-    private static String externToTypeName(String s) {
-        return s.substring(s.lastIndexOf('.') + 1);
-    }
-
-    private static boolean isTokenProviderExtern(String s) {
-        return s.startsWith("TPR:");
-    }
-
-    private static String tokenProviderExternToUsualExtern(String s) {
-        assert isTokenProviderExtern(s);
-        return s.substring(4);
     }
 
     @Override
@@ -95,13 +94,11 @@ public class Generator implements IGenerator {
         }
 
         methods.add(new Method("main", new DatatypeVariable[]{}, new Statement[]{new Return(new Null())}, new DataTypeReference(Datatype.getUnit())));
-        datatypes.add(new Datatype("Parser", new DatatypeVariant[]{
-                new DatatypeVariant("Kind1", new DatatypeVariable[]{
-                        // object that maps strings to tokens
-                        new DatatypeVariable(new DataTypeReference(tokenProviderTypename), "tokenProvider"),
-                        // Java does not support efficient tuples so parsing methods will return new i value in field return_i
-                        new DatatypeVariable(new DataTypeReference(Datatype.getInt()), "return_i"),
-                })
+        datatypes.add(new Datatype("Parser", false, new DatatypeVariable[]{
+                // object that maps strings to tokens
+                new DatatypeVariable(new DataTypeReference(tokenProviderTypename), "tokenProvider"),
+                // Java does not support efficient tuples so parsing methods will return new i value in field return_i
+                new DatatypeVariable(new DataTypeReference(Datatype.getInt()), "return_i"),
         }, new Lazy<>(methods.toArray(Method[]::new))));
 
         var systemImports = Stream.of(
@@ -115,9 +112,9 @@ public class Generator implements IGenerator {
     }
 
     private static final class Emitter {
+        private final Set<String> externs;
         private int unit_var_index = 1;
         private int field_var_index = 1;
-        private final Set<String> externs;
 
         public Emitter(Set<String> externs) {
             this.externs = Collections.unmodifiableSet(externs);
@@ -392,12 +389,16 @@ public class Generator implements IGenerator {
         private GetDatatype() {
         }
 
-        private static DatatypeVariable level2(Node node, int i) {
+        private static String getFieldName(boolean isInsideSumtype, int i) {
+            return (isInsideSumtype ? "kind_" : "field_") + i;
+        }
+
+        private static DatatypeVariable level2(Node node, boolean isInsideSumtype, int i) {
             if (node.kind == Node.NodeKind.ACOTERMINAL) {
                 // unreachable
                 throw new UnreachableReachedError("all ACOTERMINALs should have been removed by 'deflate'");
             } else if (node.kind == Node.NodeKind.NONTERMINAL) {
-                return new DatatypeVariable(new DataTypeReference(node.data), "field_" + i);
+                return new DatatypeVariable(new DataTypeReference(node.data), getFieldName(isInsideSumtype, i));
             } else if (node.kind.is_binary()) {
                 throw new PegException("nested binary nodes are not allowed");
             } else if (node.kind.is_postfix()) {
@@ -406,9 +407,9 @@ public class Generator implements IGenerator {
                     throw new PegException("nodes inside postfix operators have to be nullary");
 
                 if (node.kind == Node.NodeKind.ZERO_OR_MORE || node.kind == Node.NodeKind.ONE_OR_MORE) {
-                    return new DatatypeVariable(new ArrayTypeReference(new DataTypeReference(node.node1.data)), "field_" + i);
+                    return new DatatypeVariable(new ArrayTypeReference(new DataTypeReference(node.node1.data)), getFieldName(isInsideSumtype, i));
                 } else if (node.kind == Node.NodeKind.OPTIONAL) {
-                    return new DatatypeVariable(new DataTypeReference(node.node1.data), "field_" + i);
+                    return new DatatypeVariable(new DataTypeReference(node.node1.data), getFieldName(isInsideSumtype, i));
                 } else {
                     throw new UnreachableReachedError();
                 }
@@ -428,7 +429,7 @@ public class Generator implements IGenerator {
          * @param node Node to infer fields from
          * @see Deflator#deflate(Node)
          */
-        private static DatatypeVariant[] level1(Node node) {
+        private static Pair<DatatypeVariable[], Boolean> level1(Node node) {
             if (node.kind.is_binary()) {
                 assert node.nodes != null;
 
@@ -444,11 +445,10 @@ public class Generator implements IGenerator {
 
                     // compute variables
                     // IntBox is not atomic, so no parallelism
-                    var variables = s.sequential()
-                            .map(inner -> level2(inner, j.getAndIncrement()))
-                            .toArray(DatatypeVariable[]::new);
 
-                    return new DatatypeVariant[]{new DatatypeVariant("Kind1", variables)};
+                    return new Pair<>(s.sequential()
+                            .map(inner -> level2(inner, false, j.getAndIncrement()))
+                            .toArray(DatatypeVariable[]::new), false);
                 } else if (node.kind == Node.NodeKind.ORDERED_CHOICE) {
                     // return many variants with one variable each
 
@@ -457,26 +457,25 @@ public class Generator implements IGenerator {
                     IntBox i = new IntBox(1);
 
                     // IntBox is not atomic, so no parallelism
-                    return s.sequential()
-                            .map(inner -> level2(inner, i.data))
-                            .map(variable -> new DatatypeVariant("Kind" + i.getAndIncrement(), new DatatypeVariable[]{variable}))
-                            .toArray(DatatypeVariant[]::new);
+                    return new Pair<>(s.sequential()
+                            .map(inner -> level2(inner, true, i.getAndIncrement()))
+//                            .map(variable -> new DatatypeVariant("Kind" + i.getAndIncrement(), new DatatypeVariable[]{variable}))
+                            .toArray(DatatypeVariable[]::new), true);
                 } else {
                     throw new NonexhaustiveMatchingError(node.kind);
                 }
             } else if (node.kind.is_nullary() || node.kind.is_unary()) {
-                return new DatatypeVariant[]{
-                        new DatatypeVariant("Kind1", new DatatypeVariable[]{
-                                level2(node, 0)
-                        })
-                };
+                return new Pair<>(new DatatypeVariable[]{
+                        level2(node, false, 1)
+                }, false);
             } else {
                 throw new NonexhaustiveMatchingError(node.kind);
             }
         }
 
         public static Datatype get_datatype(String rule_name, Node node, Lazy<Method[]> methods) {
-            return new Datatype(rule_name, level1(node), methods);
+            var pair = level1(node);
+            return new Datatype(rule_name, pair.b, pair.a, methods);
         }
     }
 }

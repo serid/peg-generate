@@ -14,16 +14,18 @@ public final class Datatype {
     private static final Datatype int_ = new Datatype("int");
     public final String name;
     public final boolean is_builtin;
-    public final DatatypeVariant[] variants;
+    public final boolean isSumtype;
+    public final DatatypeVariable[] variants;
     public final Lazy<Method[]> methods;
 
-    public Datatype(String name, DatatypeVariant[] variants, Lazy<Method[]> methods) {
+    public Datatype(String name, boolean isSumtype, DatatypeVariable[] variants, Lazy<Method[]> methods) {
         Objects.requireNonNull(name);
         assert !name.equals("");
         Objects.requireNonNull(variants);
         Objects.requireNonNull(methods);
 
         this.name = name;
+        this.isSumtype = isSumtype;
         this.is_builtin = false;
         this.variants = variants;
         this.methods = methods;
@@ -35,7 +37,8 @@ public final class Datatype {
 
         this.name = name;
         this.is_builtin = true;
-        this.variants = new DatatypeVariant[]{};
+        this.isSumtype = false;
+        this.variants = new DatatypeVariable[]{};
         this.methods = new Lazy<>(new Method[]{});
     }
 
