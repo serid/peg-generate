@@ -13,15 +13,16 @@ import java.util.Collections;
 import java.util.stream.Stream;
 
 public class CompilerWrapper {
-    public static void compile(String name, String code, Path output) {
+    public static void compile(String name, String code, String classpath, Path output) {
         System.out.println("CWD: " + getCurrentWorkingDirectory());
 
         var out = new StringWriter();
 
         var tool = ToolProvider.getSystemJavaCompiler();
 
+        var options = classpath.equals("") ? null : Arrays.asList("-classpath", classpath);
         var task = tool.getTask(out, null, null,
-                Arrays.asList("-classpath", "./src/test/resources/"), null,
+                options, null,
                 Collections.singletonList(new JavaSourceFromString(name, code)));
 
         var ok = task.call();

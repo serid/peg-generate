@@ -30,6 +30,6 @@ public class PegGenerate {
     }
 
     private static void check_compiler() {
-        CompilerWrapper.compile("A", "class A {}", Path.of("src/A.class"));
+        CompilerWrapper.compile("A", "class A {}", "", Path.of("src/A.class"));
     }
 }

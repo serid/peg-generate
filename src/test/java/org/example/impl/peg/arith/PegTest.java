@@ -21,18 +21,19 @@ class PegTest {
 
     Object compileAndRun(String grammar, String inputText) {
         try {
-            var compilationDirectory = Path.of("src/test/resources/org/example/impl/peg/arith/assets/");
+            var compilationDirectory = Path.of("./src/test/resources/org/example/impl/peg/arith/assets/");
+            var classpath = "./src/test/resources/";
 
-            String testerClass = Files.readString(Path.of("src/test/resources/org/example/impl/peg/arith/assets/TestPlayGround.java"));
+            String testerClass = Files.readString(Path.of("./src/test/resources/org/example/impl/peg/arith/assets/TestPlayGround.java"));
 
             String generatedCode = Peg.compile(grammar, new Tokenizer(), new TwoStepParser(), new Generator(), new JavaBackend(JavaBackend.ADTEmulationKind.TAG_FIELD_AND_PLAIN_UNUNIONED_VARIANTS));
             System.out.println(generatedCode);
 
             try {
-                CompilerWrapper.compile("Program", generatedCode, compilationDirectory);
-                CompilerWrapper.compile("TestPlayground", testerClass, compilationDirectory);
+                CompilerWrapper.compile("Program", generatedCode, classpath, compilationDirectory);
+                CompilerWrapper.compile("TestPlayground", testerClass, classpath, compilationDirectory);
 
-                var pathClassLoader = new PathClassloader(this.getClass().getClassLoader(), Path.of("C:/Users/jitrs/IdeaProjects/peg-generate/src/test/resources/"));
+                var pathClassLoader = new PathClassloader(this.getClass().getClassLoader(), Path.of(classpath));
 
                 Class<?> tester = pathClassLoader.loadClass("org.example.impl.peg.arith.assets.TestPlayground");
 
