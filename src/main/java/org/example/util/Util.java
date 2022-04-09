@@ -1,6 +1,8 @@
 package org.example.util;
 
 import java.lang.reflect.Array;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 public final class Util {
@@ -64,5 +66,28 @@ public final class Util {
     public static <T> T[] reversed_in_place(T[] array) {
         reverse(array);
         return array;
+    }
+
+    public static String readString(Path path) {
+        try {
+            return Files.readString(path);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String readString(String path) {
+        return readString(Path.of(path));
+    }
+
+    // use like this
+    //try {
+    //} catch (Exception e) {
+    //    Util.unwrapThrowable(e).printStackTrace();
+    //}
+    public static Throwable unwrapThrowable(Throwable throwable) {
+        while (throwable.getCause() != null)
+            throwable = throwable.getCause();
+        return throwable;
     }
 }
