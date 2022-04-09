@@ -9,7 +9,6 @@ import org.example.util.CompilerWrapper;
 import org.example.util.PathClassloader;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,50 +20,39 @@ class PegTest {
 
     @Test
     void compile() {
-        var source = Path.of("src/test/resources/peg_cst.peg");
-        source = Path.of("src/test/resources/org/example/impl/peg/arith/assets/arith.peg");
-
-        String content;
         try {
-            content = Files.readString(source, StandardCharsets.US_ASCII);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
-        var generatedCode = Peg.compile(content, new Tokenizer(), new TwoStepParser(), new Generator(), new JavaBackend(JavaBackend.ADTEmulationKind.TAG_FIELD_AND_PLAIN_UNUNIONED_VARIANTS));
+            var source = Path.of("src/test/resources/peg_cst.peg");
+            source = Path.of("src/test/resources/org/example/impl/peg/arith/assets/arith.peg");
 
-        System.out.println(generatedCode);
+            var compilationDirectory = Path.of("src/test/resources/org/example/impl/peg/arith/assets/");
 
-        var compilationDirectory = Path.of("src/test/resources/org/example/impl/peg/arith/assets/");
+            String grammarText = Files.readString(source, StandardCharsets.US_ASCII);
+            String testerClass = Files.readString(Path.of("src/test/resources/org/example/impl/peg/arith/assets/TestPlayGround.java"));
 
-        String testerClass;
-        try {
-            testerClass = Files.readString(Path.of("src/test/resources/org/example/impl/peg/arith/assets/TestPlayGround.java"));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+            String generatedCode = Peg.compile(grammarText, new Tokenizer(), new TwoStepParser(), new Generator(), new JavaBackend(JavaBackend.ADTEmulationKind.TAG_FIELD_AND_PLAIN_UNUNIONED_VARIANTS));
+            System.out.println(generatedCode);
 
-        CompilerWrapper.compile("Program", generatedCode, compilationDirectory);
-        CompilerWrapper.compile("TestPlayground", testerClass, compilationDirectory);
+            try {
+                CompilerWrapper.compile("Program", generatedCode, compilationDirectory);
+                CompilerWrapper.compile("TestPlayground", testerClass, compilationDirectory);
 
-        try {
-            var pathClassLoader = new PathClassloader(this.getClass().getClassLoader(), Path.of("C:/Users/jitrs/IdeaProjects/peg-generate/src/test/resources/"));
+                var pathClassLoader = new PathClassloader(this.getClass().getClassLoader(), Path.of("C:/Users/jitrs/IdeaProjects/peg-generate/src/test/resources/"));
 
-            Class<?> tester = pathClassLoader.loadClass("org.example.impl.peg.arith.assets.TestPlayground");
+                Class<?> tester = pathClassLoader.loadClass("org.example.impl.peg.arith.assets.TestPlayground");
 
-            System.out.println(tester);
+                System.out.println(tester);
 
-            Method testMethod = tester.getMethod("test", String.class);
+                Method testMethod = tester.getMethod("test", String.class);
 
-            var input = "(2+3)*(60/2+7)"; /*185 is 5 * 37*/
-            var expected = 185;
+                var input = "(2+3)*(60/2+7)"; /*185 is 5 * 37*/
+                var expected = 185;
 
-            // assertEquals(185, TestPlayground.test(input));
-            assertEquals(expected, testMethod.invoke(null, input));
+                assertEquals(expected, testMethod.invoke(null, input));
+            } finally {
+                CompilerWrapper.cleanup(compilationDirectory);
+            }
         } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            CompilerWrapper.cleanup(compilationDirectory);
+            e.printStackTrace();
         }
     }
 }
